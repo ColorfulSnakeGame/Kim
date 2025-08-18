@@ -13,13 +13,10 @@
     "updates": {
       "fallbackToCacheTimeout": 0
     },
-    "assetBundlePatterns": [
-      "**/*"
-    ],
+    "assetBundlePatterns": ["**/*"],
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.KimsGames.colorfulsnake",
-      "buildNumber": "1.0.0",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -28,24 +25,11 @@
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
         "backgroundColor": "#FFFFFF"
-      },
-      "permissions": [
-        "android.permission.RECORD_AUDIO",
-        "android.permission.MODIFY_AUDIO_SETTINGS"
-      ]
-    },
-    "web": {
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-audio",
-      "expo-font",
-      "./plugins/with-privacy-manifest.js"
-    ],
-    "extra": {
-      "eas": {
-        "projectId": "375240b7-31bc-4441-913f-2687597053f6"
       }
+    },
+    "web": { "bundler": "metro" },
+    "extra": {
+      "eas": { "projectId": "375240b7-31bc-4441-913f-2687597053f6" }
     }
   }
 }
