@@ -17,7 +17,7 @@
       "**/*"
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.KimsGames.colorfulsnake",
       "buildNumber": "1.0.0",
       "infoPlist": {
