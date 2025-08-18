@@ -27,7 +27,8 @@ export default function Difficulty({ navigation }) {
           }}
         >
           <Text style={{ color: "white", fontWeight: "900", fontSize: 16 }}>Easy</Text>
-          <Text style={{ color: "white", opacity: 0.9 }}>Fewer obstacles, slightly slower</Text>
+          {/* INGEN hastighetsändring längre */}
+          <Text style={{ color: "white", opacity: 0.9 }}>Fewer obstacles</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -51,7 +52,7 @@ export default function Difficulty({ navigation }) {
           }}
         >
           <Text style={{ color: "white", fontWeight: "900", fontSize: 16 }}>Hard</Text>
-          <Text style={{ color: "white", opacity: 0.9 }}>All obstacles, a bit faster</Text>
+          <Text style={{ color: "white", opacity: 0.9 }}>More obstacles</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => navigation.goBack()} style={{ marginTop: 18, padding: 8 }}>

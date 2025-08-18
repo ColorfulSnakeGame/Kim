@@ -8,7 +8,7 @@ export async function saveHighscore(score) {
     const arr = raw ? JSON.parse(raw) : [];
     arr.push({ score, date: Date.now() });
     arr.sort((a, b) => b.score - a.score);
-    const top = arr.slice(0, 10);
+    const top = arr.slice(0, 10); // behåll max 10
     await AsyncStorage.setItem(KEY, JSON.stringify(top));
     return top;
   } catch (e) {
@@ -24,5 +24,14 @@ export async function loadHighscores() {
   } catch (e) {
     console.warn("loadHighscores error", e);
     return [];
+  }
+}
+
+// 🔥 Ny funktion för att rensa highscores
+export async function clearHighscores() {
+  try {
+    await AsyncStorage.setItem(KEY, JSON.stringify([])); // skriv en tom lista
+  } catch (e) {
+    console.warn("clearHighscores error", e);
   }
 }

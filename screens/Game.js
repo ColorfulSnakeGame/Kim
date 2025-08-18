@@ -1,5 +1,7 @@
-import React, { useState } from "react";
+// screens/Game.js
+import React, { useLayoutEffect, useState } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import GameCanvas from "../game/GameCanvas";
 
 export default function Game({ navigation, route }) {
@@ -12,34 +14,35 @@ export default function Game({ navigation, route }) {
     setTimeout(() => navigation.navigate("Home"), 80);
   };
 
-  return (
-    <View style={{ flex: 1, backgroundColor: "#000" }}>
-      {/* Top bar */}
-      <View
-        style={{
-          height: 56,
-          flexDirection: "row",
-          alignItems: "center",
-          justifyContent: "space-between",
-          paddingHorizontal: 12,
-          backgroundColor: "#fff",
-        }}
-      >
-        <TouchableOpacity onPress={goToMenu}>
+  // Sätt upp navigationens header (titel + knappar)
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerShown: true,
+      headerTitle: `Colorful Snake — ${difficulty.toUpperCase()} (L${startLevel + 1})`,
+      headerBackTitleVisible: false,
+      headerLeft: () => (
+        <TouchableOpacity onPress={goToMenu} style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
           <Text style={{ fontWeight: "700" }}>Back</Text>
         </TouchableOpacity>
-        <Text style={{ fontWeight: "800" }}>
-          Colorful Snake — {difficulty.toUpperCase()} (L{startLevel + 1})
-        </Text>
-        <TouchableOpacity onPress={() => setPaused((p) => !p)}>
+      ),
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={() => setPaused((p) => !p)}
+          style={{ paddingHorizontal: 8, paddingVertical: 6 }}
+        >
           <Text style={{ fontWeight: "700" }}>{paused ? "Resume" : "Pause"}</Text>
         </TouchableOpacity>
-      </View>
+      ),
+    });
+  }, [navigation, difficulty, startLevel, paused]);
 
-      {/* Spelet */}
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: "#fff" }}>
+      {/* Själva spelet */}
       <View style={{ flex: 1 }}>
         <GameCanvas paused={paused} difficulty={difficulty} startLevel={startLevel} />
-        {/* Flytande Return to Menu */}
+
+        {/* Flytande "Menu" knapp */}
         <View style={{ position: "absolute", left: 16, bottom: 20 }}>
           <TouchableOpacity
             onPress={goToMenu}
@@ -56,6 +59,6 @@ export default function Game({ navigation, route }) {
           </TouchableOpacity>
         </View>
       </View>
-    </View>
+    </SafeAreaView>
   );
 }

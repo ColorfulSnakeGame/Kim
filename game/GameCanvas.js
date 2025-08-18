@@ -1,5 +1,4 @@
-
-// GameCanvas.tsx / GameCanvas.jsx
+// game/GameCanvas.js
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
@@ -15,18 +14,18 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Haptics from "expo-haptics";
-import { useAudioPlayer, setAudioModeAsync } from "expo-audio"; // ⬅️ NYTT: setAudioModeAsync
+import { useAudioPlayer, setAudioModeAsync } from "expo-audio";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { BlurView } from "expo-blur";
-import {
-  useFonts,
-  Inter_600SemiBold,
-  Inter_700Bold,
-} from "@expo-google-fonts/inter";
+import { useFonts, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/inter";
 import { saveHighscore } from "../utils/storage";
+import { useHeaderHeight } from "@react-navigation/elements";
 
 const USE_IMAGE_BG = false;
 const GRID = 20; // 20x20 rutor
+
+// Ormens start-rad (mitt), används för att rensa hinder på startlinjen
+const START_ROW = Math.floor(GRID / 2);
 
 /** ---------- Hindergeneratorer ---------- */
 function genWalls(rows) {
@@ -122,49 +121,75 @@ const THEMES = [
   { name: "Volcano Path", gradient: ["#f83600", "#f9d423"] },
 ];
 
-/** ---------- Hinder-mjukning per svårighet ---------- */
+/** ---------- Hinder-mjukning per svårighet (behåll-andel) ---------- */
 function softenObstacles(list, difficulty) {
   if (!list || list.length === 0) return list;
-  if (difficulty === "hard") return list;
-  const step = difficulty === "easy" ? 2 : 4;
-  const filtered = list.filter((_, i) => i % step !== 0);
-  if (filtered.length === list.length && list.length > 0) {
-    return list.slice(0, list.length - 1);
-  }
-  return filtered;
+  let keepRatio = 0.5; // fallback
+  if (difficulty === "easy") keepRatio = 0.1;     // behåll 10% (ta bort 90%)
+  else if (difficulty === "medium") keepRatio = 0.2; // behåll 20% (ta bort 80%)
+  else if (difficulty === "hard") keepRatio = 0.3;   // behåll 30% (ta bort 70%)
+  return list.filter(() => Math.random() < keepRatio);
 }
 
+/** ---------- 30 nivåer (unika namn) + konstant hastighet ---------- */
 function makeLevels(difficulty = "medium") {
-  const speedMul = difficulty === "easy" ? 0.9 : difficulty === "hard" ? 1.1 : 1.0;
   const levels = [];
-  for (let i = 0; i < 20; i++) {
+  const TOTAL_LEVELS = 30;
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  for (let i = 0; i < TOTAL_LEVELS; i++) {
     const theme = THEMES[i % THEMES.length];
+    const tier = Math.floor(i / 10); // 0..2 (var 10:e level lite tuffare)
     let obstacles = [];
-    if (i === 0) obstacles = [];
-    else if (i === 1) obstacles = genWalls(3);
-    else if (i === 2) obstacles = genMaze(6);
-    else if (i === 3) obstacles = genBlocks(10);
-    else if (i === 4) obstacles = genPerimeter(3);
-    else if (i === 5) obstacles = genCross(4);
-    else if (i === 6) obstacles = genWalls(5);
-    else if (i === 7) obstacles = genMaze(10);
-    else if (i === 8) obstacles = genBlocks(14);
-    else if (i === 9) obstacles = genChecker(4);
-    else if (i === 10) obstacles = genPerimeter(2);
-    else if (i === 11) obstacles = genTunnels();
-    else if (i === 12) obstacles = [...genWalls(6), ...genBlocks(8)];
-    else if (i === 13) obstacles = [...genMaze(12), ...genChecker(5)];
-    else if (i === 14) obstacles = [...genBlocks(16), ...genCross(3)];
-    else if (i === 15) obstacles = [...genPerimeter(2), ...genWalls(4)];
-    else if (i === 16) obstacles = [...genMaze(14), ...genBlocks(12)];
-    else if (i === 17) obstacles = [...genTunnels(), ...genCross(3)];
-    else if (i === 18) obstacles = [...genChecker(3), ...genWalls(6)];
-    else if (i === 19) obstacles = [...genMaze(16), ...genPerimeter(2), ...genBlocks(18)];
+
+    switch (i % 10) {
+      case 0:
+        obstacles = [];
+        break;
+      case 1:
+        obstacles = genWalls(clamp(3 + tier, 2, 8));
+        break;
+      case 2:
+        obstacles = genMaze(clamp(6 + tier * 2, 5, 18));
+        break;
+      case 3:
+        obstacles = genBlocks(clamp(10 + tier * 4, 8, 28));
+        break;
+      case 4:
+        obstacles = genPerimeter(clamp(3 - Math.floor(tier / 2), 1, 4));
+        break;
+      case 5:
+        obstacles = genCross(clamp(4 - Math.floor(tier / 2), 2, 6));
+        break;
+      case 6:
+        obstacles = [...genWalls(clamp(5 + tier, 4, 10)), ...genBlocks(clamp(4 + tier * 2, 4, 16))];
+        break;
+      case 7:
+        obstacles = [...genMaze(clamp(10 + tier * 2, 8, 24)), ...genChecker(clamp(5 - tier, 2, 6))];
+        break;
+      case 8:
+        obstacles = [...genBlocks(clamp(14 + tier * 3, 12, 30)), ...genCross(3)];
+        break;
+      case 9:
+        obstacles = [...genPerimeter(2), ...genTunnels(), ...genChecker(clamp(4 - Math.floor(tier / 2), 2, 5))];
+        break;
+    }
+
+    // 1) Reducera hinder enligt difficulty
     obstacles = softenObstacles(obstacles, difficulty);
+    // 2) Ta bort allt på ormens start-rad
+    obstacles = obstacles.filter((o) => o.y !== START_ROW);
+    // 3) Extra: gör nivå 10, 20, 30 lite enklare (ytterligare halvering)
+    if (i === 9 || i === 19 || i === 29) {
+      obstacles = obstacles.filter(() => Math.random() < 0.5);
+    }
+
+    // Hastighet: oförändrad per level, oberoende av difficulty
     const baseSpeed = Math.min(6 + i * 0.7, 18);
-    const speed = baseSpeed * speedMul;
+    const speed = baseSpeed;
+
     levels.push({
-      name: `${theme.name} ${Math.floor(i / THEMES.length) + 1}`,
+      name: `${theme.name} ${Math.floor(i / THEMES.length) + 1}`, // unikt namn (kapitel)
       gradient: theme.gradient,
       obstacles,
       speed,
@@ -173,7 +198,7 @@ function makeLevels(difficulty = "medium") {
   return levels;
 }
 
-const levelImages = new Array(20).fill(null);
+const levelImages = new Array(30).fill(null);
 
 /** ---------- Hjälpare: hinder/lediga rutor/matspawn ---------- */
 function isObstacle(levels, levelIndex, pos) {
@@ -236,6 +261,7 @@ function DifficultyBadge({ difficulty, fontsLoaded }) {
         borderColor: "rgba(255,255,255,0.22)",
         backgroundColor: "rgba(255,255,255,0.10)",
         marginRight: 10,
+        marginBottom: 6,
       }}
     >
       <View
@@ -265,6 +291,7 @@ function DifficultyBadge({ difficulty, fontsLoaded }) {
 /** ---------- Huvudkomponent ---------- */
 export default function GameCanvas({ startLevel = 0, paused = false, difficulty = "medium" }) {
   const insets = useSafeAreaInsets();
+  const headerHeight = useHeaderHeight(); // >0 om header finns
   const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Inter_600SemiBold, Inter_700Bold });
 
@@ -290,13 +317,12 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
   const [soundOn, setSoundOn] = useState(true);
   const [hapticsOn, setHapticsOn] = useState(true);
 
-  /** 📴 Respektera iOS Silent Switch (expo-audio) */
+  /** 📴 iOS Silent Switch */
   useEffect(() => {
-    // iOS: spela INTE ljud i tyst läge (review-vänligt). Android ignorerar denna flagga.
-    setAudioModeAsync({ playsInSilentMode: false }).catch(() => {});
+    setAudioModeAsync({ playsInSilentMode: false, staysActiveInBackground: false }).catch(() => {});
   }, []);
 
-  /** 🎵 Ljud (expo-audio) — MP3! */
+  /** 🎵 Ljud (expo-audio) — MP3 */
   const eatPlayer = useAudioPlayer(require("../assets/sounds/eat.mp3"));
   const overPlayer = useAudioPlayer(require("../assets/sounds/gameover.mp3"));
   const upPlayer = useAudioPlayer(require("../assets/sounds/levelup.mp3"));
@@ -305,19 +331,31 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     try {
       player.seekTo(0);
       player.play();
-    } catch (e) {}
+    } catch {}
   };
 
-  // Auto-pause
-  useEffect(() => {
-    const sub = AppState.addEventListener("change", (state) => {
-      if (state !== "active") setRunning(false);
-    });
-    return () => sub.remove();
-  }, []);
-  useEffect(() => {
-    if (paused) setRunning(false);
-  }, [paused]);
+// Auto-pause vid app i bakgrunden
+useEffect(() => {
+  const sub = AppState.addEventListener("change", (state) => {
+    if (state !== "active") setRunning(false);
+  });
+  return () => sub.remove();
+}, []);
+
+// Pause/Resume styrt av prop 'paused' (t.ex. från headern)
+useEffect(() => {
+  if (paused) {
+    setRunning(false);
+  } else {
+    // starta igen när man unpausar via headern
+    if (!gameOver && !won && countdown === 0) {
+      resumeWithCountdown();
+    }
+  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [paused]);
+
+
 
   // Head pulse
   const headPulse = useRef(new Animated.Value(1)).current;
@@ -348,7 +386,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     if (food) triggerFoodSpawn();
   }, [food?.x, food?.y]);
 
-  // Swipe-kontroller (telefon) — flyttas till brädet via props
+  // Swipe-kontroller
   const pan = useRef(
     PanResponder.create({
       onStartShouldSetPanResponder: () => true,
@@ -390,6 +428,9 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     return () => {};
   }, [running, gameOver, won, countdown]);
 
+  // Alltid 3 äpplen per nivå
+  const LEVEL_UP_EVERY = 3;
+
   // Spelloop
   useEffect(() => {
     if (!running || gameOver || won || countdown > 0) return;
@@ -420,7 +461,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
           setHueBase((h) => (h + 37) % 360);
           setScore((s) => {
             const ns = s + 1;
-            if (ns % 3 === 0 && level < LEVELS.length - 1) {
+            if (ns % LEVEL_UP_EVERY === 0 && level < LEVELS.length - 1) {
               setLevel((lv) => lv + 1);
               play(upPlayer);
               if (hapticsOn) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
@@ -503,12 +544,12 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
   }
   function resumeWithCountdown() {
     setCountdown(3);
-    const t1 = setTimeout(() => setCountdown(2), 700);
-    const t2 = setTimeout(() => setCountdown(1), 1400);
+    const t1 = setTimeout(() => setCountdown(2), 800);
+    const t2 = setTimeout(() => setCountdown(1), 1600);
     const t3 = setTimeout(() => {
       setCountdown(0);
       setRunning(true);
-    }, 2100);
+    }, 2400);
     return () => {
       clearTimeout(t1);
       clearTimeout(t2);
@@ -531,7 +572,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     borderRadius: 999,
   };
 
-  // “Toggle”-piller
+  // “Toggle”-piller (lokal komponent – ingen extern import)
   const TogglePill = ({ on, label, onPress }) => (
     <TouchableOpacity
       onPress={onPress}
@@ -545,6 +586,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         borderColor: "rgba(255,255,255,0.22)",
         backgroundColor: on ? "rgba(34,197,94,0.25)" : "rgba(255,255,255,0.10)",
         marginLeft: 8,
+        marginBottom: 6,
       }}
     >
       <View
@@ -569,6 +611,10 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
       </Text>
     </TouchableOpacity>
   );
+
+  // --- HUD positionering ---
+  const HUD_TOP = headerHeight > 0 ? 8 : (insets?.top || 0) + 8;
+  const HUD_MAX_WIDTH = Math.min(width - 16, 600);
 
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#fff" }}>
@@ -598,7 +644,19 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
 
         {/* Hinder */}
         {(LEVELS[level].obstacles || []).map((o, i) => (
-          <View key={`o${i}`} style={{ position: "absolute", left: o.x * CELL, top: o.y * CELL, width: CELL - 4, height: CELL - 4, backgroundColor: "#64748b", borderRadius: 8, margin: 2 }} />
+          <View
+            key={`o${i}`}
+            style={{
+              position: "absolute",
+              left: o.x * CELL,
+              top: o.y * CELL,
+              width: CELL - 4,
+              height: CELL - 4,
+              backgroundColor: "#64748b",
+              borderRadius: 8,
+              margin: 2,
+            }}
+          />
         ))}
 
         {/* Orm */}
@@ -624,7 +682,19 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
               }}
             />
           ) : (
-            <View key={`s${i}`} style={{ position: "absolute", left: s.x * CELL, top: s.y * CELL, width: CELL - 2, height: CELL - 2, backgroundColor: color, borderRadius: 6, margin: 1 }} />
+            <View
+              key={`s${i}`}
+              style={{
+                position: "absolute",
+                left: s.x * CELL,
+                top: s.y * CELL,
+                width: CELL - 2,
+                height: CELL - 2,
+                backgroundColor: color,
+                borderRadius: 6,
+                margin: 1,
+              }}
+            />
           );
         })}
 
@@ -774,18 +844,29 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         )}
       </LevelBackground>
 
-      {/* HUD – frostad och stilren */}
-      <View style={{ position: "absolute", top: insets.top + 8, alignItems: "center", width: "100%" }}>
+      {/* HUD – frostad och stilren, alltid innanför header/safe area */}
+      <View
+        style={{
+          position: "absolute",
+          top: HUD_TOP,
+          alignItems: "center",
+          width: "100%",
+          paddingHorizontal: 8,
+        }}
+      >
         {Platform.OS !== "android" ? (
           <BlurView intensity={30} tint="dark" style={{ borderRadius: 14, overflow: "hidden" }}>
             <View
               style={{
                 flexDirection: "row",
+                flexWrap: "wrap",
                 alignItems: "center",
+                justifyContent: "center",
                 paddingHorizontal: 14,
                 paddingVertical: 8,
                 borderWidth: 1,
                 borderColor: "rgba(255,255,255,0.18)",
+                maxWidth: HUD_MAX_WIDTH,
               }}
             >
               <DifficultyBadge difficulty={difficulty} fontsLoaded={fontsLoaded} />
@@ -797,13 +878,13 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
                   letterSpacing: 0.3,
                   fontWeight: fontsLoaded ? "normal" : "600",
                   fontFamily: fontsLoaded ? "Inter_600SemiBold" : undefined,
+                  marginBottom: 6,
                 }}
               >
-                Score {score} · L{level + 1}/20 — {LEVELS[level].name}
+                Score {score} · L{level + 1}/30 — {LEVELS[level].name}
               </Text>
 
-              {/* Settings piller: ljud + haptics */}
-              <View style={{ flexDirection: "row", marginLeft: 10 }}>
+              <View style={{ flexDirection: "row", flexWrap: "wrap", marginLeft: 10 }}>
                 <TogglePill on={soundOn} label={soundOn ? "Sound On" : "Sound Off"} onPress={() => setSoundOn((v) => !v)} />
                 <TogglePill on={hapticsOn} label={hapticsOn ? "Haptics On" : "Haptics Off"} onPress={() => setHapticsOn((v) => !v)} />
               </View>
@@ -820,7 +901,10 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
               borderWidth: 1,
               borderColor: "rgba(255,255,255,0.18)",
               flexDirection: "row",
+              flexWrap: "wrap",
               alignItems: "center",
+              justifyContent: "center",
+              maxWidth: HUD_MAX_WIDTH,
             }}
           >
             <DifficultyBadge difficulty={difficulty} fontsLoaded={fontsLoaded} />
@@ -832,12 +916,13 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
                 letterSpacing: 0.3,
                 fontWeight: fontsLoaded ? "normal" : "600",
                 fontFamily: fontsLoaded ? "Inter_600SemiBold" : undefined,
+                marginBottom: 6,
               }}
             >
-              Score {score} · L{level + 1}/20 — {LEVELS[level].name}
+              Score {score} · L{level + 1}/30 — {LEVELS[level].name}
             </Text>
 
-            <View style={{ flexDirection: "row", marginLeft: 10 }}>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", marginLeft: 10 }}>
               <TogglePill on={soundOn} label={soundOn ? "Sound On" : "Sound Off"} onPress={() => setSoundOn((v) => !v)} />
               <TogglePill on={hapticsOn} label={hapticsOn ? "Haptics On" : "Haptics Off"} onPress={() => setHapticsOn((v) => !v)} />
             </View>
@@ -845,15 +930,14 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         )}
       </View>
 
-      {/* ⬇️ Kontroll: bara PAUSE/RESUME centrerad */}
+      {/* ⬇️ PAUSE/RESUME KNAPP – flyttad till nedre högra hörnet */}
       {!won && !gameOver && (
         <View
           style={{
             position: "absolute",
-            bottom: insets.bottom + 18,
-            left: 0,
-            right: 0,
-            alignItems: "center",
+            bottom: 20,     // samma höjd som Menu-knappen i Game.js (bottom: 20)
+            right: 16,      // spegla vänstersidans margin
+            alignItems: "flex-end",
           }}
         >
           {running ? (

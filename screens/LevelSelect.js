@@ -2,16 +2,18 @@ import React from "react";
 import { View, Text, TouchableOpacity, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 
-// Samma namnlogik som i spelet (20 nivåer, 10 teman i loop)
+// 10 teman, loopas över 3 kapitel => 30 unika namn
 const THEMES = [
   { name:"Sunny Meadow" }, { name:"Candy Forest" }, { name:"Starry Caves" }, { name:"Neon City" },
   { name:"Ocean Breeze" }, { name:"Lavender Fields" }, { name:"Desert Dunes" }, { name:"Frost Peak" },
   { name:"Jungle Run" }, { name:"Volcano Path" },
 ];
-const LEVEL_NAMES = new Array(20).fill(0).map((_,i)=>{
+
+const TOTAL_LEVELS = 30;
+const LEVEL_NAMES = new Array(TOTAL_LEVELS).fill(0).map((_, i) => {
   const theme = THEMES[i % THEMES.length].name;
-  const chapter = Math.floor(i / THEMES.length) + 1;
-  return `${theme} ${chapter}`;
+  const chapter = Math.floor(i / THEMES.length) + 1; // 1..5
+  return `${theme} ${chapter}`; // t.ex. "Sunny Meadow 1" ... "Sunny Meadow 5"
 });
 
 export default function LevelSelect({ navigation, route }) {
