@@ -27,9 +27,27 @@
         "backgroundColor": "#FFFFFF"
       }
     },
-    "web": { "bundler": "metro" },
+    "web": {
+      "bundler": "metro"
+    },
     "extra": {
-      "eas": { "projectId": "375240b7-31bc-4441-913f-2687597053f6" }
-    }
+      "eas": {
+        "projectId": "375240b7-31bc-4441-913f-2687597053f6"
+      }
+    },
+    "plugins": [
+      "expo-audio",
+      "expo-font",
+      "./plugins/with-privacy-manifest.js",
+      [
+        "react-native-google-mobile-ads",
+        {
+          "iosAppId": "ca-app-pub-73492552188807012~2233111125"
+        }
+      ]
+    ]
+  },
+  "react-native-google-mobile-ads": {
+    "ios_app_id": "ca-app-pub-73492552188807012~2233111125"
   }
 }
