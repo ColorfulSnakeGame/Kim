@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import mobileAds from 'react-native-google-mobile-ads';
+
 import Home from './screens/Home';
 import Difficulty from './screens/Difficulty';
 import LevelSelect from './screens/LevelSelect';
@@ -10,6 +12,11 @@ import Highscores from './screens/Highscores';
 const Stack = createNativeStackNavigator();
 
 export default function App() {
+  // Initiera Google Mobile Ads SDK vid appstart
+  useEffect(() => {
+    mobileAds().initialize().catch(() => {});
+  }, []);
+
   return (
     <NavigationContainer>
       <Stack.Navigator screenOptions={{ headerShown: false }}>

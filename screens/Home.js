@@ -1,3 +1,4 @@
+// screens/Home.js
 import React, { useEffect, useRef } from "react";
 import { View, Text, TouchableOpacity, Animated, Easing, Dimensions } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
@@ -24,7 +25,7 @@ export default function Home({ navigation }) {
         val.setValue(0);
         Animated.timing(val, {
           toValue: 1,
-          duration: 8000 + i * 1200, // olika hastighet per bubbla
+          duration: 8000 + i * 1200,
           delay: BUBBLES[i].delay,
           easing: Easing.linear,
           useNativeDriver: true,
@@ -46,21 +47,20 @@ export default function Home({ navigation }) {
         {BUBBLES.map((b, i) => {
           const translateY = floats[i].interpolate({
             inputRange: [0, 1],
-            outputRange: [0, -SCREEN_HEIGHT - b.size], // flytta hela vägen upp och lite till
+            outputRange: [0, -SCREEN_HEIGHT - b.size],
           });
           return (
             <Animated.View
               key={i}
               style={{
                 position: "absolute",
-                bottom: -b.size, // start under skärmen
+                bottom: -b.size,
                 left: b.left,
                 width: b.size,
                 height: b.size,
                 borderRadius: b.size / 2,
                 transform: [{ translateY }],
-                backgroundColor:
-                  i % 2 === 0 ? "rgba(59,130,246,0.14)" : "rgba(16,185,129,0.12)",
+                backgroundColor: i % 2 === 0 ? "rgba(59,130,246,0.14)" : "rgba(16,185,129,0.12)",
                 borderWidth: 1,
                 borderColor: "rgba(255,255,255,0.28)",
               }}

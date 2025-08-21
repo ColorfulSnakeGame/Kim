@@ -21,6 +21,10 @@ import { useFonts, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/i
 import { saveHighscore } from "../utils/storage";
 import { useHeaderHeight } from "@react-navigation/elements";
 
+// 👇 Ads imports
+import { InterstitialAd, AdEventType } from "react-native-google-mobile-ads";
+import { INTERSTITIAL_UNIT_ID, NPA_REQUEST } from "../utils/ads";
+
 const USE_IMAGE_BG = false;
 const GRID = 20; // 20x20 rutor
 
@@ -334,28 +338,70 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     } catch {}
   };
 
-// Auto-pause vid app i bakgrunden
-useEffect(() => {
-  const sub = AppState.addEventListener("change", (state) => {
-    if (state !== "active") setRunning(false);
-  });
-  return () => sub.remove();
-}, []);
+  // 👉 Interstitial-setup + var-3:e-gameover-räknare
+  const interstitialRef = useRef(
+    InterstitialAd.createForAdRequest(INTERSTITIAL_UNIT_ID, NPA_REQUEST)
+  ).current;
+  const interstitialReady = useRef(false);
+  const prevGameOver = useRef(false);
+  const gameOverCountRef = useRef(0);
 
-// Pause/Resume styrt av prop 'paused' (t.ex. från headern)
-useEffect(() => {
-  if (paused) {
-    setRunning(false);
-  } else {
-    // starta igen när man unpausar via headern
-    if (!gameOver && !won && countdown === 0) {
-      resumeWithCountdown();
+  useEffect(() => {
+    const onLoaded = interstitialRef.addAdEventListener(AdEventType.LOADED, () => {
+      interstitialReady.current = true;
+    });
+    const onClosed = interstitialRef.addAdEventListener(AdEventType.CLOSED, () => {
+      interstitialReady.current = false;
+      interstitialRef.load();
+    });
+    const onError = interstitialRef.addAdEventListener(AdEventType.ERROR, () => {
+      interstitialReady.current = false;
+      setTimeout(() => interstitialRef.load(), 1500);
+    });
+
+    interstitialRef.load();
+    return () => {
+      onLoaded();
+      onClosed();
+      onError();
+    };
+  }, [interstitialRef]);
+
+  useEffect(() => {
+    // Visa endast på "rising edge" (false -> true), och aldrig vid win
+    if (gameOver && !prevGameOver.current && !won) {
+      gameOverCountRef.current += 1;
+      if (gameOverCountRef.current % 3 === 0) {
+        if (interstitialReady.current) {
+          interstitialRef.show();
+        } else {
+          interstitialRef.load();
+        }
+      }
     }
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-}, [paused]);
+    prevGameOver.current = gameOver;
+  }, [gameOver, won, interstitialRef]);
 
+  // Auto-pause vid app i bakgrunden
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", (state) => {
+      if (state !== "active") setRunning(false);
+    });
+    return () => sub.remove();
+  }, []);
 
+  // Pause/Resume styrt av prop 'paused' (t.ex. från headern)
+  useEffect(() => {
+    if (paused) {
+      setRunning(false);
+    } else {
+      // starta igen när man unpausar via headern
+      if (!gameOver && !won && countdown === 0) {
+        resumeWithCountdown();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paused]);
 
   // Head pulse
   const headPulse = useRef(new Animated.Value(1)).current;
