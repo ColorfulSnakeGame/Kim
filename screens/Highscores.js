@@ -4,6 +4,7 @@ import { View, Text, FlatList, TouchableOpacity, Alert, Platform } from "react-n
 import { LinearGradient } from "expo-linear-gradient";
 import { useFonts, Inter_700Bold, Inter_600SemiBold } from "@expo-google-fonts/inter";
 import { loadHighscores, clearHighscores } from "../utils/storage";
+import { openPrivacyOptions } from "../utils/consent";
 
 export default function Highscores({ navigation }) {
   const [scores, setScores] = useState([]);
@@ -36,7 +37,6 @@ export default function Highscores({ navigation }) {
 
   const onClearPress = async () => {
     if (Platform.OS === "web") {
-      // Alert.alert fungerar inte på web → använd confirm
       const ok = window.confirm?.("Are you sure you want to clear all highscores?");
       if (ok) {
         try {
@@ -49,7 +49,6 @@ export default function Highscores({ navigation }) {
       return;
     }
 
-    // iOS/Android: kör vanliga Alert
     Alert.alert(
       "Rensa highscores",
       "Är du säker på att du vill ta bort alla highscores?",
@@ -69,6 +68,22 @@ export default function Highscores({ navigation }) {
         },
       ]
     );
+  };
+
+  const onPrivacyPress = async () => {
+    if (Platform.OS === "web") {
+      alert("Privacy options är inte tillgängligt i webbläsaren.");
+      return;
+    }
+    try {
+      await openPrivacyOptions();
+    } catch (e) {
+      Alert.alert(
+        "Privacy options",
+        "Kunde inte öppna privacy-alternativen just nu. Försök igen senare."
+      );
+      console.warn("openPrivacyOptions error:", e);
+    }
   };
 
   return (
@@ -111,7 +126,27 @@ export default function Highscores({ navigation }) {
           Highscores
         </Text>
 
-        <View style={{ width: 48 }} />
+        {/* Privacy options-knapp (återkalla/ändra samtycke) */}
+        <TouchableOpacity
+          onPress={onPrivacyPress}
+          style={{
+            paddingVertical: 6,
+            paddingHorizontal: 10,
+            backgroundColor: "#0ea5e9",
+            borderRadius: 10,
+          }}
+        >
+          <Text
+            style={{
+              color: "#fff",
+              fontWeight: fontsLoaded ? "normal" : "800",
+              fontFamily: fontsLoaded ? "Inter_700Bold" : undefined,
+              fontSize: 12,
+            }}
+          >
+            Privacy
+          </Text>
+        </TouchableOpacity>
       </View>
 
       {/* Lista */}

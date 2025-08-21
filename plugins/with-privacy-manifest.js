@@ -2,6 +2,7 @@
 // Expo config plugin to generate and include Apple's Privacy Manifest (PrivacyInfo.xcprivacy)
 // Usage: add to app.json -> { "expo": { "plugins": ["./plugins/with-privacy-manifest.js"] } }
 const { withDangerousMod, withXcodeProject } = require('@expo/config-plugins');
+const withGoogleMobileAds = require('react-native-google-mobile-ads/plugin');
 const fs = require('fs');
 const path = require('path');
 
@@ -42,7 +43,15 @@ function addToXcodeProject(config) {
 }
 
 module.exports = function withPrivacyManifest(config) {
+  // Write PrivacyInfo.xcprivacy
   config = writePrivacyManifest(config);
   config = addToXcodeProject(config);
+
+  // Integrera react-native-google-mobile-ads plugin
+  config = withGoogleMobileAds(config, {
+    iosAppId: 'ca-app-pub-7349255218807012~2233111125',
+    delayAppMeasurementInit: true,
+  });
+
   return config;
 };

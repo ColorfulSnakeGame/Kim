@@ -1,7 +1,7 @@
+// App.js
 import React, { useEffect } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import mobileAds from 'react-native-google-mobile-ads';
 
 import Home from './screens/Home';
 import Difficulty from './screens/Difficulty';
@@ -9,12 +9,17 @@ import LevelSelect from './screens/LevelSelect';
 import Game from './screens/Game';
 import Highscores from './screens/Highscores';
 
+import { initAdsWithConsent } from './utils/consent';
+
 const Stack = createNativeStackNavigator();
 
 export default function App() {
-  // Initiera Google Mobile Ads SDK vid appstart
   useEffect(() => {
-    mobileAds().initialize().catch(() => {});
+    // Kör UMP vid appstart innan några annonser laddas.
+    // Tips vid test i EU: lägg till { debugEEA: true } temporärt.
+    initAdsWithConsent();
+    // Exempel för test (ta bort innan produktion):
+    // initAdsWithConsent({ debugEEA: true });
   }, []);
 
   return (
