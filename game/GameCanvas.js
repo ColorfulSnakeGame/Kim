@@ -21,14 +21,12 @@ import { useFonts, Inter_600SemiBold, Inter_700Bold } from "@expo-google-fonts/i
 import { saveHighscore } from "../utils/storage";
 import { useHeaderHeight } from "@react-navigation/elements";
 
-// 👇 Ads imports
+// ⬇️ AdMob interstitial (NPA) — visas var 3:e GAME OVER
 import { InterstitialAd, AdEventType } from "react-native-google-mobile-ads";
 import { INTERSTITIAL_UNIT_ID, NPA_REQUEST } from "../utils/ads";
 
 const USE_IMAGE_BG = false;
 const GRID = 20; // 20x20 rutor
-
-// Ormens start-rad (mitt), används för att rensa hinder på startlinjen
 const START_ROW = Math.floor(GRID / 2);
 
 /** ---------- Hindergeneratorer ---------- */
@@ -128,83 +126,47 @@ const THEMES = [
 /** ---------- Hinder-mjukning per svårighet (behåll-andel) ---------- */
 function softenObstacles(list, difficulty) {
   if (!list || list.length === 0) return list;
-  let keepRatio = 0.5; // fallback
-  if (difficulty === "easy") keepRatio = 0.1;     // behåll 10% (ta bort 90%)
-  else if (difficulty === "medium") keepRatio = 0.2; // behåll 20% (ta bort 80%)
-  else if (difficulty === "hard") keepRatio = 0.3;   // behåll 30% (ta bort 70%)
+  let keepRatio = 0.5;
+  if (difficulty === "easy") keepRatio = 0.1;
+  else if (difficulty === "medium") keepRatio = 0.2;
+  else if (difficulty === "hard") keepRatio = 0.3;
   return list.filter(() => Math.random() < keepRatio);
 }
 
-/** ---------- 30 nivåer (unika namn) + konstant hastighet ---------- */
+/** ---------- 30 nivåer + konstant hastighet ---------- */
 function makeLevels(difficulty = "medium") {
   const levels = [];
   const TOTAL_LEVELS = 30;
   const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
   for (let i = 0; i < TOTAL_LEVELS; i++) {
     const theme = THEMES[i % THEMES.length];
-    const tier = Math.floor(i / 10); // 0..2 (var 10:e level lite tuffare)
+    const tier = Math.floor(i / 10);
     let obstacles = [];
-
     switch (i % 10) {
-      case 0:
-        obstacles = [];
-        break;
-      case 1:
-        obstacles = genWalls(clamp(3 + tier, 2, 8));
-        break;
-      case 2:
-        obstacles = genMaze(clamp(6 + tier * 2, 5, 18));
-        break;
-      case 3:
-        obstacles = genBlocks(clamp(10 + tier * 4, 8, 28));
-        break;
-      case 4:
-        obstacles = genPerimeter(clamp(3 - Math.floor(tier / 2), 1, 4));
-        break;
-      case 5:
-        obstacles = genCross(clamp(4 - Math.floor(tier / 2), 2, 6));
-        break;
-      case 6:
-        obstacles = [...genWalls(clamp(5 + tier, 4, 10)), ...genBlocks(clamp(4 + tier * 2, 4, 16))];
-        break;
-      case 7:
-        obstacles = [...genMaze(clamp(10 + tier * 2, 8, 24)), ...genChecker(clamp(5 - tier, 2, 6))];
-        break;
-      case 8:
-        obstacles = [...genBlocks(clamp(14 + tier * 3, 12, 30)), ...genCross(3)];
-        break;
-      case 9:
-        obstacles = [...genPerimeter(2), ...genTunnels(), ...genChecker(clamp(4 - Math.floor(tier / 2), 2, 5))];
-        break;
+      case 0: obstacles = []; break;
+      case 1: obstacles = genWalls(clamp(3 + tier, 2, 8)); break;
+      case 2: obstacles = genMaze(clamp(6 + tier * 2, 5, 18)); break;
+      case 3: obstacles = genBlocks(clamp(10 + tier * 4, 8, 28)); break;
+      case 4: obstacles = genPerimeter(clamp(3 - Math.floor(tier / 2), 1, 4)); break;
+      case 5: obstacles = genCross(clamp(4 - Math.floor(tier / 2), 2, 6)); break;
+      case 6: obstacles = [...genWalls(clamp(5 + tier, 4, 10)), ...genBlocks(clamp(4 + tier * 2, 4, 16))]; break;
+      case 7: obstacles = [...genMaze(clamp(10 + tier * 2, 8, 24)), ...genChecker(clamp(5 - tier, 2, 6))]; break;
+      case 8: obstacles = [...genBlocks(clamp(14 + tier * 3, 12, 30)), ...genCross(3)]; break;
+      case 9: obstacles = [...genPerimeter(2), ...genTunnels(), ...genChecker(clamp(4 - Math.floor(tier / 2), 2, 5))]; break;
     }
-
-    // 1) Reducera hinder enligt difficulty
     obstacles = softenObstacles(obstacles, difficulty);
-    // 2) Ta bort allt på ormens start-rad
     obstacles = obstacles.filter((o) => o.y !== START_ROW);
-    // 3) Extra: gör nivå 10, 20, 30 lite enklare (ytterligare halvering)
-    if (i === 9 || i === 19 || i === 29) {
-      obstacles = obstacles.filter(() => Math.random() < 0.5);
-    }
-
-    // Hastighet: oförändrad per level, oberoende av difficulty
+    if (i === 9 || i === 19 || i === 29) obstacles = obstacles.filter(() => Math.random() < 0.5);
     const baseSpeed = Math.min(6 + i * 0.7, 18);
     const speed = baseSpeed;
-
-    levels.push({
-      name: `${theme.name} ${Math.floor(i / THEMES.length) + 1}`, // unikt namn (kapitel)
-      gradient: theme.gradient,
-      obstacles,
-      speed,
-    });
+    levels.push({ name: `${theme.name} ${Math.floor(i / THEMES.length) + 1}`, gradient: theme.gradient, obstacles, speed });
   }
   return levels;
 }
 
 const levelImages = new Array(30).fill(null);
 
-/** ---------- Hjälpare: hinder/lediga rutor/matspawn ---------- */
+/** ---------- Hjälpare ---------- */
 function isObstacle(levels, levelIndex, pos) {
   const arr = levels[levelIndex].obstacles || [];
   return arr.some((o) => o.x === pos.x && o.y === pos.y);
@@ -225,12 +187,12 @@ function getFreeCells(levels, levelIndex, snake) {
 }
 function spawnFood(levels, levelIndex, snake) {
   const free = getFreeCells(levels, levelIndex, snake);
-  if (free.length === 0) return null; // fullt bräde
+  if (free.length === 0) return null;
   const idx = Math.floor(Math.random() * free.length);
   return free[idx];
 }
 
-/** ---------- Bakgrund (panHandlers på brädet) ---------- */
+/** ---------- Bakgrund ---------- */
 function LevelBackground({ levels, levelIndex, children, boardSize, panHandlers }) {
   const img = levelImages[levelIndex];
   const grad = levels[levelIndex].gradient;
@@ -268,15 +230,7 @@ function DifficultyBadge({ difficulty, fontsLoaded }) {
         marginBottom: 6,
       }}
     >
-      <View
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: col,
-          marginRight: 6,
-        }}
-      />
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: col, marginRight: 6 }} />
       <Text
         style={{
           color: "#fff",
@@ -295,7 +249,7 @@ function DifficultyBadge({ difficulty, fontsLoaded }) {
 /** ---------- Huvudkomponent ---------- */
 export default function GameCanvas({ startLevel = 0, paused = false, difficulty = "medium" }) {
   const insets = useSafeAreaInsets();
-  const headerHeight = useHeaderHeight(); // >0 om header finns
+  const headerHeight = useHeaderHeight();
   const { width, height } = useWindowDimensions();
   const [fontsLoaded] = useFonts({ Inter_600SemiBold, Inter_700Bold });
 
@@ -338,49 +292,44 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     } catch {}
   };
 
-  // 👉 Interstitial-setup + var-3:e-gameover-räknare
-  const interstitialRef = useRef(
-    InterstitialAd.createForAdRequest(INTERSTITIAL_UNIT_ID, NPA_REQUEST)
-  ).current;
-  const interstitialReady = useRef(false);
-  const prevGameOver = useRef(false);
-  const gameOverCountRef = useRef(0);
+  // 🔢 Interstitial: räkna GAME OVER och ladda/visa var 3:e
+  const deathCountRef = useRef(0);
+  const interRef = useRef(null);
+  const [interLoaded, setInterLoaded] = useState(false);
 
-  useEffect(() => {
-    const onLoaded = interstitialRef.addAdEventListener(AdEventType.LOADED, () => {
-      interstitialReady.current = true;
+  const createAndLoadInterstitial = () => {
+    // Rensa ev. gamla listeners
+    try { interRef.current?.removeAllListeners?.(); } catch {}
+    const ad = InterstitialAd.createForAdRequest(INTERSTITIAL_UNIT_ID, NPA_REQUEST);
+    interRef.current = ad;
+
+    const unsubLoaded = ad.addAdEventListener(AdEventType.LOADED, () => setInterLoaded(true));
+    const unsubClosed = ad.addAdEventListener(AdEventType.CLOSED, () => {
+      setInterLoaded(false);
+      // förladda nästa
+      setTimeout(() => createAndLoadInterstitial(), 300);
     });
-    const onClosed = interstitialRef.addAdEventListener(AdEventType.CLOSED, () => {
-      interstitialReady.current = false;
-      interstitialRef.load();
-    });
-    const onError = interstitialRef.addAdEventListener(AdEventType.ERROR, () => {
-      interstitialReady.current = false;
-      setTimeout(() => interstitialRef.load(), 1500);
+    const unsubError = ad.addAdEventListener(AdEventType.ERROR, () => {
+      setInterLoaded(false);
+      // prova igen lite senare
+      setTimeout(() => createAndLoadInterstitial(), 2000);
     });
 
-    interstitialRef.load();
+    ad.load();
+
+    // Returnera cleanup
     return () => {
-      onLoaded();
-      onClosed();
-      onError();
+      unsubLoaded?.();
+      unsubClosed?.();
+      unsubError?.();
     };
-  }, [interstitialRef]);
+  };
 
   useEffect(() => {
-    // Visa endast på "rising edge" (false -> true), och aldrig vid win
-    if (gameOver && !prevGameOver.current && !won) {
-      gameOverCountRef.current += 1;
-      if (gameOverCountRef.current % 3 === 0) {
-        if (interstitialReady.current) {
-          interstitialRef.show();
-        } else {
-          interstitialRef.load();
-        }
-      }
-    }
-    prevGameOver.current = gameOver;
-  }, [gameOver, won, interstitialRef]);
+    const cleanup = createAndLoadInterstitial();
+    return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Auto-pause vid app i bakgrunden
   useEffect(() => {
@@ -390,12 +339,11 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     return () => sub.remove();
   }, []);
 
-  // Pause/Resume styrt av prop 'paused' (t.ex. från headern)
+  // Pause/Resume styrt av prop 'paused'
   useEffect(() => {
     if (paused) {
       setRunning(false);
     } else {
-      // starta igen när man unpausar via headern
       if (!gameOver && !won && countdown === 0) {
         resumeWithCountdown();
       }
@@ -474,7 +422,6 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     return () => {};
   }, [running, gameOver, won, countdown]);
 
-  // Alltid 3 äpplen per nivå
   const LEVEL_UP_EVERY = 3;
 
   // Spelloop
@@ -494,6 +441,20 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
           play(overPlayer);
           if (hapticsOn) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
           saveHighscore(score);
+
+          // 👇 Interstitial: var 3:e game over
+          deathCountRef.current += 1;
+          const shouldShow = deathCountRef.current % 3 === 0;
+          if (shouldShow) {
+            setTimeout(() => {
+              if (interRef.current && interLoaded) {
+                try { interRef.current.show(); } catch {}
+              } else {
+                // om inte laddad, starta laddning så nästa gång funkar
+                createAndLoadInterstitial();
+              }
+            }, 250);
+          }
           return prev;
         }
 
@@ -534,7 +495,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
       });
     }, tickMs);
     return () => clearInterval(id);
-  }, [dir, running, level, gameOver, won, score, LEVELS, countdown, food, hapticsOn]);
+  }, [dir, running, level, gameOver, won, score, LEVELS, countdown, food, hapticsOn, interLoaded]);
 
   // Mat efter level-byte / full board => win
   useEffect(() => {
@@ -597,9 +558,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
       setRunning(true);
     }, 2400);
     return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
+      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
     };
   }
 
@@ -612,13 +571,8 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
   const head = snake[0];
 
   // Gemensam knappstil
-  const btn = {
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 999,
-  };
+  const btn = { paddingHorizontal: 18, paddingVertical: 12, borderRadius: 999 };
 
-  // “Toggle”-piller (lokal komponent – ingen extern import)
   const TogglePill = ({ on, label, onPress }) => (
     <TouchableOpacity
       onPress={onPress}
@@ -635,15 +589,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         marginBottom: 6,
       }}
     >
-      <View
-        style={{
-          width: 8,
-          height: 8,
-          borderRadius: 4,
-          backgroundColor: on ? "#22c55e" : "#94a3b8",
-          marginRight: 6,
-        }}
-      />
+      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: on ? "#22c55e" : "#94a3b8", marginRight: 6 }} />
       <Text
         style={{
           color: "#fff",
@@ -658,7 +604,7 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
     </TouchableOpacity>
   );
 
-  // --- HUD positionering ---
+  // HUD positionering
   const HUD_TOP = headerHeight > 0 ? 8 : (insets?.top || 0) + 8;
   const HUD_MAX_WIDTH = Math.min(width - 16, 600);
 
@@ -890,16 +836,8 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         )}
       </LevelBackground>
 
-      {/* HUD – frostad och stilren, alltid innanför header/safe area */}
-      <View
-        style={{
-          position: "absolute",
-          top: HUD_TOP,
-          alignItems: "center",
-          width: "100%",
-          paddingHorizontal: 8,
-        }}
-      >
+      {/* HUD – frostad och stilren */}
+      <View style={{ position: "absolute", top: HUD_TOP, alignItems: "center", width: "100%", paddingHorizontal: 8 }}>
         {Platform.OS !== "android" ? (
           <BlurView intensity={30} tint="dark" style={{ borderRadius: 14, overflow: "hidden" }}>
             <View
@@ -937,7 +875,6 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
             </View>
           </BlurView>
         ) : (
-          // Android fallback (utan BlurView)
           <View
             style={{
               backgroundColor: "rgba(15,23,42,0.55)",
@@ -976,37 +913,18 @@ export default function GameCanvas({ startLevel = 0, paused = false, difficulty 
         )}
       </View>
 
-      {/* ⬇️ PAUSE/RESUME KNAPP – flyttad till nedre högra hörnet */}
+      {/* ⬇️ PAUSE/RESUME KNAPP */}
       {!won && !gameOver && (
-        <View
-          style={{
-            position: "absolute",
-            bottom: 20,     // samma höjd som Menu-knappen i Game.js (bottom: 20)
-            right: 16,      // spegla vänstersidans margin
-            alignItems: "flex-end",
-          }}
-        >
+        <View style={{ position: "absolute", bottom: 20, right: 16, alignItems: "flex-end" }}>
           {running ? (
             <TouchableOpacity onPress={() => setRunning(false)} style={[btn, { backgroundColor: "#3b82f6" }]}>
-              <Text
-                style={{
-                  color: "white",
-                  fontWeight: fontsLoaded ? "normal" : "800",
-                  fontFamily: fontsLoaded ? "Inter_700Bold" : undefined,
-                }}
-              >
+              <Text style={{ color: "white", fontWeight: fontsLoaded ? "normal" : "800", fontFamily: fontsLoaded ? "Inter_700Bold" : undefined }}>
                 Pause
               </Text>
             </TouchableOpacity>
           ) : (
             <TouchableOpacity onPress={resumeWithCountdown} style={[btn, { backgroundColor: "#22c55e" }]}>
-              <Text
-                style={{
-                  color: "white",
-                  fontWeight: fontsLoaded ? "normal" : "800",
-                  fontFamily: fontsLoaded ? "Inter_700Bold" : undefined,
-                }}
-              >
+              <Text style={{ color: "white", fontWeight: fontsLoaded ? "normal" : "800", fontFamily: fontsLoaded ? "Inter_700Bold" : undefined }}>
                 {countdown > 0 ? "Get Ready…" : "Resume"}
               </Text>
             </TouchableOpacity>
