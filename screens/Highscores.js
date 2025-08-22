@@ -126,27 +126,8 @@ export default function Highscores({ navigation }) {
           Highscores
         </Text>
 
-        {/* Privacy options-knapp (återkalla/ändra samtycke) */}
-        <TouchableOpacity
-          onPress={onPrivacyPress}
-          style={{
-            paddingVertical: 6,
-            paddingHorizontal: 10,
-            backgroundColor: "#0ea5e9",
-            borderRadius: 10,
-          }}
-        >
-          <Text
-            style={{
-              color: "#fff",
-              fontWeight: fontsLoaded ? "normal" : "800",
-              fontFamily: fontsLoaded ? "Inter_700Bold" : undefined,
-              fontSize: 12,
-            }}
-          >
-            Privacy
-          </Text>
-        </TouchableOpacity>
+        {/* Tom plats för att balansera headern visuellt */}
+        <View style={{ width: 48 }} />
       </View>
 
       {/* Lista */}
@@ -212,6 +193,36 @@ export default function Highscores({ navigation }) {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* Privacy-knapp i nedre högra hörnet */}
+      <TouchableOpacity
+        onPress={onPrivacyPress}
+        style={{
+          position: "absolute",
+          right: 16,
+          bottom: 16,
+          paddingVertical: 10,
+          paddingHorizontal: 14,
+          backgroundColor: "#0ea5e9",
+          borderRadius: 12,
+          elevation: 3,
+          shadowColor: "#0ea5e9",
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+          shadowOffset: { width: 0, height: 3 },
+        }}
+      >
+        <Text
+          style={{
+            color: "#fff",
+            fontWeight: fontsLoaded ? "normal" : "800",
+            fontFamily: fontsLoaded ? "Inter_700Bold" : undefined,
+            fontSize: 12,
+          }}
+        >
+          Privacy
+        </Text>
+      </TouchableOpacity>
 
       {/* Popup för nytt highscore */}
       {newHighscore && (
